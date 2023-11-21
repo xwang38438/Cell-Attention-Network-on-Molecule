@@ -17,6 +17,7 @@ class DataFrameParser(object):
     def __init__(self, preprocessor,
                  labels=None,
                  smiles_col='smiles',
+                 enegery_col='U0',
                  postprocess_label=None, postprocess_fn=None,
                  logger=None):
         super(DataFrameParser, self).__init__()
@@ -24,6 +25,7 @@ class DataFrameParser(object):
             labels = [labels, ]
         self.labels = labels
         self.smiles_col = smiles_col
+        self.enegery_col = enegery_col
         self.postprocess_label = postprocess_label
         self.postprocess_fn = postprocess_fn
         self.logger = logger or getLogger(__name__)
@@ -34,6 +36,7 @@ class DataFrameParser(object):
         logger = self.logger
         pp = self.preprocessor
         smiles_list = []
+        energy_list = []
         is_successful_list = []
 
         # counter = 0
@@ -43,6 +46,7 @@ class DataFrameParser(object):
 
             features = None
             smiles_index = df.columns.get_loc(self.smiles_col)
+            energy_index = df.columns.get_loc(self.enegery_col)
             if self.labels is None:
                 labels_index = []  # dummy list
             else:
@@ -53,8 +57,9 @@ class DataFrameParser(object):
             success_count = 0
             for row in tqdm(df.itertuples(index=False), total=df.shape[0]):
                 smiles = row[smiles_index]
-                # TODO(Nakago): Check.
-                # currently it assumes list
+                energy = row[energy_index]
+                energy_list.append(energy)
+
                 labels = [row[i] for i in labels_index]
                 try:
                     mol = Chem.MolFromSmiles(smiles)
@@ -127,6 +132,7 @@ class DataFrameParser(object):
             raise NotImplementedError
 
         smileses = numpy.array(smiles_list) if return_smiles else None
+        energies = numpy.array(energy_list)
         if return_is_successful:
             is_successful = numpy.array(is_successful_list)
         else:
@@ -143,6 +149,7 @@ class DataFrameParser(object):
 
         return {"dataset": dataset,
                 "smiles": smileses,
+                'U0': energies,  # 'U0' is the energy column name for QM9
                 "is_successful": is_successful}
 
     def extract_total_num(self, df):

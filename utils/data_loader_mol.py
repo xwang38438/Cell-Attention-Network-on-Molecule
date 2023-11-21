@@ -86,22 +86,6 @@ class MolDataset(Dataset):
 def get_transform_fn(dataset):
     if dataset == 'QM9':
         def transform(data):
-        #     x, adj = data
-        #     # the last place is for virtual nodes
-        #     # 6: C, 7: N, 8: O, 9: F
-        #     x_ = np.zeros((9, 5))
-        #     indices = np.where(x >= 6, x - 6, 4)
-        #     x_[np.arange(9), indices] = 1
-        #     x = torch.tensor(x_).to(torch.float32)
-        #     # single, double, triple and no-bond; the last channel is for virtual edges
-        #     adj = np.concatenate([adj[:3], 1 - np.sum(adj[:3], axis=0, keepdims=True)],
-        #                             axis=0).astype(np.float32)
-
-        #     x = x[:, :-1]                               # 9, 5 (the last place is for vitual nodes) -> 9, 4 (38, 9)
-        #     adj = torch.tensor(adj.argmax(axis=0))      # 4, 9, 9 (the last place is for vitual edges) -> 9, 9 (38, 38)
-        #     # 0, 1, 2, 3 -> 1, 2, 3, 0; now virtual edges are denoted as 0
-        #     adj = torch.where(adj == 3, 0, adj + 1).to(torch.float32)
-
 
             # x, adj 
             x = extract_node_feature_matrix_qm9(data, pad_virtual_nodes=True)

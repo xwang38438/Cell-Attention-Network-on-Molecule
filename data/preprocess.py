@@ -27,6 +27,7 @@ elif data_name == 'QM9':
     path = 'data/qm9.csv'
     smiles_col = 'SMILES1'
     label_idx = 2
+    energy = 'U0'
 else:
     raise ValueError(f"[ERROR] Unexpected value data_name={data_name}")
 
