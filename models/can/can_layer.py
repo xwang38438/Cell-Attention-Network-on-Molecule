@@ -274,6 +274,10 @@ class MultiHeadLiftLayer(nn.Module):
 
         # Concatenate the lifted node signal with the original node signal if is not None
         if x_1 is not None:
+            
+            print("combined_x_1 shape:", combined_x_1.shape)
+            print("x_1 shape:", x_1.shape)
+            
             combined_x_1 = torch.cat(
                 (combined_x_1, x_1), dim=1
             )  # (num_edges, heads + in_channels_1)

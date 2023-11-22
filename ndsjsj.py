@@ -83,16 +83,16 @@ def extract_low_laplacian_edge(cc, pad_virtual_edges=True):
         return torch.from_numpy(cc.down_laplacian_matrix(rank=1, signed = False).todense()).float()
 
 
-with open('data/qm9_test_cell_complex.pkl', 'rb') as f:
-    qm9_test_cell_complex = pickle.load(f)
+# with open('data/qm9_test_cell_complex.pkl', 'rb') as f:
+#     qm9_test_cell_complex = pickle.load(f)
 
-cc = qm9_test_cell_complex[0]
+# cc = qm9_test_cell_complex[0]
     
-print(cc.get_node_attributes('label'))
-print(cc.get_edge_attributes('label'))
-#print(extract_edge_features_qm9(qm9_train_cell_complex[0]))
-#print(cc.up_laplacian_matrix(rank=1, signed = False).todense())
-print(extract_low_laplacian_edge(cc))
+# print(cc.get_node_attributes('label'))
+# print(cc.get_edge_attributes('label'))
+# #print(extract_edge_features_qm9(qm9_train_cell_complex[0]))
+# #print(cc.up_laplacian_matrix(rank=1, signed = False).todense())
+# print(extract_low_laplacian_edge(cc))
 
 
 
@@ -110,18 +110,23 @@ class CCDataset(Dataset):
     def __getitem__(self, idx):
         cc = self.cell_complexes[idx]
         x_0 = extract_node_feature_qm9(cc)
-        x_1 = extract_edge_features_qm9(cc)
+        x_1 = extract_edge_features_qm9(cc, pad_virtual_edges=False)
         a_0 = extract_adjacency_matrix_qm9(cc)
-        upper_l_1 = extract_up_laplacian_edge(cc)
-        lower_l_1 = extract_low_laplacian_edge(cc)
+        upper_l_1 = extract_up_laplacian_edge(cc, pad_virtual_edges=False)
+        lower_l_1 = extract_low_laplacian_edge(cc, pad_virtual_edges=False)
+        y = cc.name['gap']
         
-        return x_0, x_1, a_0, upper_l_1, lower_l_1
+        return x_0, x_1, a_0, upper_l_1, lower_l_1,y
             
             
-dataset = CCDataset(qm9_test_cell_complex)
-dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+# dataset = CCDataset(qm9_test_cell_complex)
+# dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-for batch in dataloader:
-    print(batch)
-    break
+# for batch in dataloader:
+#     print(batch[0].shape)
+#     print(batch[1].shape)
+#     print(batch[2].shape)
+#     print(batch[3].shape)
+#     print(batch[4].shape)
+#     break
         
