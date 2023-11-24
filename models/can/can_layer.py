@@ -8,9 +8,9 @@ from torch.nn import Linear, Parameter
 from torch.nn import functional as F
 from torch.nn import init
 
-from models.base.aggregation import Aggregation
-from models.base.message_passing import MessagePassing
-from utils.scatter import scatter_add, scatter_sum
+from topomodelx.base.aggregation import Aggregation
+from topomodelx.base.message_passing import MessagePassing
+from topomodelx.utils.scatter import scatter_add, scatter_sum
 
 
 def softmax(src, index, num_cells: int):
@@ -274,10 +274,6 @@ class MultiHeadLiftLayer(nn.Module):
 
         # Concatenate the lifted node signal with the original node signal if is not None
         if x_1 is not None:
-            
-            print("combined_x_1 shape:", combined_x_1.shape)
-            print("x_1 shape:", x_1.shape)
-            
             combined_x_1 = torch.cat(
                 (combined_x_1, x_1), dim=1
             )  # (num_edges, heads + in_channels_1)
