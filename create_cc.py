@@ -22,7 +22,8 @@ if dataset == 'QM9':
     with open(f'data/{dataset.lower()}_test_nx.pkl', 'rb') as f:
         test_mols = pickle.load(f)
     
- 
+    # exclude molecules with no edges
+    
     # extract ring from each molecular graph 
     mol_train_rings = []
     mol_test_rings = []
@@ -62,6 +63,8 @@ if dataset == 'QM9':
     with open(f'data/{dataset.lower()}_test_cell_complex.pkl', 'wb') as f:
         pickle.dump(qm9_test_cell_complex, f)
 
+elif dataset == 'ZINC250k':
+    pass
 
     
 

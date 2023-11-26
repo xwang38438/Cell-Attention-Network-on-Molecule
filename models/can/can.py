@@ -132,6 +132,10 @@ class CAN(torch.nn.Module):
         torch.Tensor
             Output prediction for the cell complex.
         """
+        
+        # print('start training')
+        # print('--'*20)
+        
         if hasattr(self, "lift_layer"):
             x_1 = self.lift_layer(x_0, neighborhood_0_to_0, x_1)
 
@@ -142,6 +146,7 @@ class CAN(torch.nn.Module):
                 )
             else:
                 x_1 = layer(x_1, lower_neighborhood, upper_neighborhood)
+                # print('go through one layer')
                 x_1 = F.dropout(x_1, p=0.5, training=self.training)
 
         # max pooling over all nodes in each graph

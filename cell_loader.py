@@ -36,22 +36,29 @@ def extract_node_feature_qm9(cc, pad_virtual_nodes=False):
 
     return torch.from_numpy(feature_matrix).float()
 
+import torch
+
+
 def extract_edge_features_qm9(cc, pad_virtual_edges=False):
-    
     one_hot_mapping = {1: [1, 0, 0], 2: [0, 1, 0], 3: [0, 0, 1]}
     edge_features = []
 
-    for _,_, data in cc.edges(data=True):
+    for u, v, data in cc.edges(data=True):
         # Retrieve the label of the edge
         label = data.get('label', 1)  # Default to 1 if no label is found
         one_hot = one_hot_mapping.get(label, one_hot_mapping[1])  # Default to label 1 encoding if label is not found
-        edge_features.append(one_hot)
         
+        # Add feature for both directions
+        edge_features.append(one_hot)  # for (u, v)
+        #edge_features.append(one_hot)  # for (v, u)
+
     if pad_virtual_edges:
-        max_edges = 13
-        edge_features = edge_features + [[0,0,0]] * (max_edges - len(edge_features))
+        max_edges = 26  # Adjusted for bidirectional edges
+        edge_features = edge_features + [[0, 0, 0]] * (max_edges - len(edge_features))
 
     return torch.tensor(edge_features, dtype=torch.float32)
+
+
 
 def extract_up_laplacian_edge(cc, pad_virtual_edges=False):
     if pad_virtual_edges:
@@ -205,27 +212,27 @@ def custom_collate(batch):
     return batch_x_0, large_a_0, batch_x_1, large_upper_l_1, large_lower_l_1, batch_y, node_indices, edge_indices
 
 
-with open('data/qm9_test_cell_complex.pkl', 'rb') as f:
-    qm9_test_cell_complex = pickle.load(f)
+# with open('data/qm9_test_cell_complex.pkl', 'rb') as f:
+#     qm9_test_cell_complex = pickle.load(f)
 
 
 
-ccs = [CellData(*cc_to_data(cc)) for cc in qm9_test_cell_complex]
-samples = ccs[0:4]
-# print(custom_collate(samples))
+# ccs = [CellData(*cc_to_data(cc)) for cc in qm9_test_cell_complex]
+# samples = ccs[0:4]
+# # print(custom_collate(samples))
 
 
-print("Creating DataLoader...")
-loader = DataLoader(ccs, batch_size=3, shuffle=False, collate_fn=custom_collate)
-print("DataLoader created.")
+# print("Creating DataLoader...")
+# loader = DataLoader(ccs, batch_size=3, shuffle=False, collate_fn=custom_collate)
+# print("DataLoader created.")
 
 
 
 
 
-# dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+# # dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-for batch in loader:
-    print(batch)
-    break
+# for batch in loader:
+#     print(batch)
+#     break
         

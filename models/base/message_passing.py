@@ -4,7 +4,7 @@ from typing import Literal
 
 import torch
 
-from topomodelx.utils.scatter import scatter
+from models.utils.scatter import scatter
 
 
 class MessagePassing(torch.nn.Module):
@@ -163,7 +163,7 @@ class MessagePassing(torch.nn.Module):
             torch.matmul(x_source_target_per_message, self.att_weight)
         )
 
-    def aggregate(self, x_message):
+    def aggregate(self, x_message, num_edges = None):
         """Aggregate messages on each target cell.
 
         A target cell receives messages from several source cells.
@@ -186,8 +186,11 @@ class MessagePassing(torch.nn.Module):
             Each target cell aggregates messages from several source cells.
             Assumes that all target cells have the same rank s.
         """
+        
+        
         aggr = scatter(self.aggr_func)
-        return aggr(x_message, self.target_index_i, 0)
+        #print(x_message)
+        return aggr(x_message, self.target_index_i, 0, num_edges = num_edges)
 
     def forward(self, x_source, neighborhood, x_target=None):
         r"""Forward pass.

@@ -8,12 +8,12 @@ from torch.nn import Linear, Parameter
 from torch.nn import functional as F
 from torch.nn import init
 
-from topomodelx.base.aggregation import Aggregation
-from topomodelx.base.message_passing import MessagePassing
-from topomodelx.utils.scatter import scatter_add, scatter_sum
+from models.base.aggregation import Aggregation
+from models.base.message_passing import MessagePassing
+from models.utils.scatter import scatter_add, scatter_sum, scatter_mean
 
 
-def softmax(src, index, num_cells: int):
+def softmax(src, index, num_cells: int, n_edges: int):
     r"""Compute the softmax of the attention coefficients.
 
     Parameters
@@ -36,10 +36,28 @@ def softmax(src, index, num_cells: int):
     Subtracting the maximum element in it from all elements to avoid overflow
     and underflow.
     """
+    
+    # print("src shape:", src)
+    # print("index shape:", index)
+    # print("index max value:", index.max().item())
+    # print("num_cells:", num_cells)
+    
     src_max = src.max(dim=0, keepdim=True)[0]  # (1, H)
     src -= src_max  # (|n_k_cells|, H)
     src_exp = torch.exp(src)  # (|n_k_cells|, H)
-    src_sum = scatter_sum(src_exp, index, dim=0, dim_size=num_cells)[
+    # print("src_exp shape:", src_exp.shape)
+    # print("src_exp:", src_exp)
+    # print(index)
+    # print(num_cells)
+    
+    # assign name to index
+    # index = index.refine_names(str(n_edges))
+
+    if index.max().item() >= num_cells:
+        num_cells = n_edges
+        #print('yes')
+    
+    src_sum = scatter_sum(src_exp, index, dim=0, dim_size=num_cells, num_edges=n_edges)[
         index
     ]  # (|n_k_cells|, H)
     return src_exp / (src_sum + 1e-16)  # (|n_k_cells|, H)
@@ -146,6 +164,8 @@ class LiftLayer(MessagePassing):
         edge_signal = torch.einsum(
             "ij,jh->ih", node_features_stacked, self.att_parameter
         )  # (num_edges, heads)
+        
+
         return self.signal_lift_activation(edge_signal)
 
     def forward(self, x_0, neighborhood_0_to_0) -> torch.Tensor:  # type: ignore[override]
@@ -169,7 +189,7 @@ class LiftLayer(MessagePassing):
         # Extract the node signal of the source and target nodes
         x_source = x_0[source]  # (num_edges, in_channels_0)
         x_target = x_0[target]  # (num_edges, in_channels_0)
-
+        
         # Compute the edge signal
         return self.message(x_source, x_target)  # (num_edges, 1)
 
@@ -514,6 +534,7 @@ class MultiHeadCellAttention(MessagePassing):
 
         # Apply activation function
         alpha = self.att_activation(alpha)
+        
 
         # Normalize the attention coefficients
         alpha = softmax(alpha, self.target_index_i, x_source.shape[0])
@@ -563,6 +584,8 @@ class MultiHeadCellAttention(MessagePassing):
         message = self.message(x_source)  # (|n_k_cells|, H, C)
         # compute within-neighborhood aggregation step
         aggregated_message = self.aggregate(message)  # (n_k_cells, H, C)
+        # print(aggregated_message, aggregated_message.shape)
+        # print(aggregated_message)
 
         # if concat true, concatenate the messages for each head. Otherwise, average the messages for each head.
         if self.concat:
@@ -624,6 +647,7 @@ class MultiHeadCellAttention_v2(MessagePassing):
         aggr_func: Literal["sum", "mean", "add"] = "sum",
         initialization: Literal["xavier_uniform", "xavier_normal"] = "xavier_uniform",
         share_weights: bool = False,
+        num_edges: int = -1,
     ) -> None:
         super().__init__(
             aggr_func=aggr_func,
@@ -676,11 +700,15 @@ class MultiHeadCellAttention_v2(MessagePassing):
         Tensor, shape = (n_k_cells, heads, in_channels)
             Messages on source cells.
         """
+        # print('message x_source', x_source.shape)
+        # print(x_source)
+        
         # Compute the linear transformation on the source features
         x_src_message = self.lin_src(x_source).view(
             -1, self.heads, self.out_channels
         )  # (n_k_cells, H, C)
-
+        # print('x_src_message',x_src_message.shape)
+        # print(x_src_message)
         # Compute the linear transformation on the source features
         x_dst_message = self.lin_dst(x_source).view(
             -1, self.heads, self.out_channels
@@ -694,6 +722,9 @@ class MultiHeadCellAttention_v2(MessagePassing):
         x_message = x_source_per_message + x_target_per_message  # (|n_k_cells|, H, C)
 
         # Compute the attention coefficients
+        # print('x message before attention:', x_message.shape)
+        # print(x_message)
+        
         alpha = self.attention(x_message)  # (|n_k_cells|, H)
 
         # for each head, Aggregate the messages
@@ -714,16 +745,30 @@ class MultiHeadCellAttention_v2(MessagePassing):
         torch.Tensor, shape = (n_k_cells, heads)
             Attention weights.
         """
+        # print("before activation", x_source.shape)
         # Apply activation function
         x_source = self.att_activation(x_source)  # (|n_k_cells|, H, C)
+        # print('x_source after activation:')
+        # print(x_source.shape)
 
         # Compute attention coefficients
         alpha = torch.einsum(
             "ijk,tjk->ij", x_source, self.att_weight
         )  # (|n_k_cells|, H)
+        
+        # print("alpha shape before softmax:")
+        # print(alpha.shape)
+
+        # print("target_index_i shape:", self.target_index_i.shape)
+        # print("x_source shape:", x_source.shape)
+        # print(alpha)
+        # print(self.target_index_i)
 
         # Normalize the attention coefficients
-        alpha = softmax(alpha, self.target_index_i, x_source.shape[0])
+        # problem with softmax
+        #if x_source.shape[0] < self.target_index_i.max().item():
+        
+        alpha = softmax(alpha, self.target_index_i, x_source.shape[0], self.num_edges)
 
         # Apply dropout
         alpha = F.dropout(alpha, p=self.dropout, training=self.training)
@@ -745,6 +790,10 @@ class MultiHeadCellAttention_v2(MessagePassing):
         torch.Tensor, shape = (n_k_cells, channels)
             Output features on the r-cell of the cell complex.
         """
+        # print("x_source shape:", x_source.shape)
+        # print("neighborhood shape:", neighborhood.shape)
+        self.num_edges = neighborhood.shape[0]
+        
         # If there are no non-zero values in the neighborhood, then the neighborhood is empty. -> return zero tensor
         if not neighborhood.values().nonzero().size(0) > 0 and self.concat:
             return torch.zeros(
@@ -768,9 +817,13 @@ class MultiHeadCellAttention_v2(MessagePassing):
 
         # compute message passing step
         message = self.message(x_source)  # (|n_k_cells|, H, C)
+        #print('message shape:', message.shape)
+        
         # compute within-neighborhood aggregation step
-        aggregated_message = self.aggregate(message)  # (n_k_cells, H, C)
-
+        aggregated_message = self.aggregate(message, num_edges= self.num_edges)  # (n_k_cells, H, C)
+        #print('aggregated_message shape', aggregated_message.shape)
+        
+        
         # if concat true, concatenate the messages for each head. Otherwise, average the messages for each head.
         if self.concat:
             return aggregated_message.view(
@@ -833,7 +886,7 @@ class CANLayer(torch.nn.Module):
         add_self_loops: bool = False,
         aggr_func: Literal["mean", "sum"] = "sum",
         update_func: Literal["relu", "sigmoid", "tanh"] | None = "relu",
-        version: Literal["v1", "v2"] = "v1",
+        version: Literal["v1", "v2"] = "v2",
         share_weights: bool = False,
     ) -> None:
         super().__init__()

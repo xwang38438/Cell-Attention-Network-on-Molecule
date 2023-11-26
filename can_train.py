@@ -15,7 +15,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 with open("data/qm9_test_cell_complex.pkl", "rb") as f:
     cc_list = pickle.load(f)
     
-from ndsjsj import CCDataset
+from cell_loader import CCDataset
 dataset = CCDataset(cc_list)
 
 x_0_list = [data[0] for data in dataset]
