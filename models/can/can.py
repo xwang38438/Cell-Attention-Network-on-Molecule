@@ -47,7 +47,7 @@ class CAN(torch.nn.Module):
         in_channels_0,
         in_channels_1,
         out_channels,
-        num_classes,
+#        num_classes,
         dropout=0.5,
         heads=3,
         concat=True,
@@ -98,7 +98,7 @@ class CAN(torch.nn.Module):
 
             layers.append(
                 PoolLayer(
-                    k_pool=0.5,
+                    k_pool=1,
                     in_channels_0=out_channels * heads,
                     signal_pool_activation=torch.nn.Sigmoid(),
                     readout=True,
@@ -107,7 +107,7 @@ class CAN(torch.nn.Module):
 
         self.layers = torch.nn.ModuleList(layers)
         self.lin_0 = torch.nn.Linear(heads * out_channels, 128)
-        self.lin_1 = torch.nn.Linear(128, num_classes)
+        self.lin_1 = torch.nn.Linear(128, 1)
 
     def forward(
         self, x_0, x_1, neighborhood_0_to_0, lower_neighborhood, upper_neighborhood
@@ -138,21 +138,25 @@ class CAN(torch.nn.Module):
         
         if hasattr(self, "lift_layer"):
             x_1 = self.lift_layer(x_0, neighborhood_0_to_0, x_1)
+            #print('x_1.shape',x_1.shape)
 
         for layer in self.layers:
             if isinstance(layer, PoolLayer):
                 x_1, lower_neighborhood, upper_neighborhood = layer(
                     x_1, lower_neighborhood, upper_neighborhood
                 )
+                #print('x_1.shape after pooling',x_1.shape)
             else:
                 x_1 = layer(x_1, lower_neighborhood, upper_neighborhood)
-                # print('go through one layer')
+                #print('x_1.shape after CANLayer',x_1.shape)
                 x_1 = F.dropout(x_1, p=0.5, training=self.training)
 
         # max pooling over all nodes in each graph
+        #print('x_1.shape',x_1.shape)
         x = x_1.max(dim=0)[0]
 
         # Feed-Foward Neural Network to predict the graph label
-        out = self.lin_1(torch.nn.functional.relu(self.lin_0(x)))
+        out = torch.nn.functional.relu(self.lin_0(x))
+        out = torch.nn.functional.relu(self.lin_1(out))
 
         return out

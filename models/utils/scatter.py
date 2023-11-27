@@ -72,13 +72,9 @@ def scatter_add(
     dim: int = -1,
     out: torch.Tensor | None = None,
     dim_size: int | None = None,
-    num_edges: int | None = None,
 ) -> torch.Tensor:
     """Add all values from the `src` tensor into `out` at the indices."""
-    
-    #print('this function is called')
-    return scatter_sum(src, index, dim, out, dim_size, num_edges)
-
+    return scatter_sum(src, index, dim, out, dim_size)
 
 
 
