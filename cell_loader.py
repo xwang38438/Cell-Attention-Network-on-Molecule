@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 import numpy as np
 from torch_geometric.data import Data
 from torch.utils.data import DataLoader
+from models.utils.sparse import from_sparse
 
 def extract_adjacency_matrix_qm9(cc, pad_virtual_nodes=False):
     max_nodes = 9 if pad_virtual_nodes else len(cc.nodes)
@@ -129,7 +130,6 @@ class CCDataset(Dataset):
         
         return x_0, x_1, a_0, upper_l_1, lower_l_1,y, edge_index
 
-
 def cc_to_data(cc):
     x_0 = extract_node_feature_qm9(cc)
     x_1 = extract_edge_features_qm9(cc, pad_virtual_edges=False)
@@ -137,6 +137,29 @@ def cc_to_data(cc):
     upper_l_1 = extract_up_laplacian_edge(cc, pad_virtual_edges=False)
     lower_l_1 = extract_low_laplacian_edge(cc, pad_virtual_edges=False)
     #edge_index = to_edge_index(cc.get_edge_attributes('label'))
+    y = cc.name['gap']
+    
+    return x_0, x_1, a_0, upper_l_1, lower_l_1,y
+
+
+
+
+# version that can utilize topomodelx functions 
+def cc_to_data_topomodelx(cc):
+    x_0 = extract_node_feature_qm9(cc, pad_virtual_nodes=False)
+    x_1 = extract_edge_features_qm9(cc, pad_virtual_edges=False)
+    a_0 = cc.adjacency_matrix(rank=0)
+    a_0 = torch.from_numpy(a_0.todense())
+    lower_l_1 = cc.down_laplacian_matrix(rank=1, signed=False)
+    lower_l_1 = torch.from_numpy(lower_l_1.todense())
+    try:
+        upper_l_1 = cc.up_laplacian_matrix(rank=1, signed=False)
+        upper_l_1 = torch.from_numpy(upper_l_1.todense())
+    except:
+        upper_l_1 = np.zeros(
+            (lower_l_1.shape[0], lower_l_1.shape[0])
+        )
+        upper_l_1 = torch.from_numpy(upper_l_1)
     y = cc.name['gap']
     
     return x_0, x_1, a_0, upper_l_1, lower_l_1,y
@@ -156,8 +179,12 @@ class CellData(Data):
 def custom_collate(batch):
 
     max_nodes = sum([data.a_0.shape[0] for data in batch])
-    print(max_nodes)
     max_edges = sum([data.lower_l_1.shape[0] for data in batch]) 
+    
+    current_node_index = 0
+    current_edge_index = 0
+    node_indices = []
+    edge_indices = []
 
     # Initialize large matrices
     large_a_0 = torch.zeros((max_nodes, max_nodes))
@@ -168,18 +195,13 @@ def custom_collate(batch):
     batch_x_0 = []
     batch_x_1 = []
     batch_y = []
-    node_indices = []
-    edge_indices = []
 
-    current_node_index = 0
-    current_edge_index = 0
-
-    for data in batch:
+    for i, data in enumerate(batch):
         x_0 = data.x_0
         x_1 = data.x_1
         a_0 = data.a_0
-        upper_l_1 = data.upper_l_1
         lower_l_1 = data.lower_l_1
+        upper_l_1 = data.upper_l_1
         y = data.y
 
         # Number of nodes and edges in the current graph
@@ -191,11 +213,11 @@ def custom_collate(batch):
         large_upper_l_1[current_edge_index:current_edge_index+num_edges, current_edge_index:current_edge_index+num_edges] = upper_l_1
         large_lower_l_1[current_edge_index:current_edge_index+num_edges, current_edge_index:current_edge_index+num_edges] = lower_l_1
 
+        # convert adjacency matrix to sparse_coo_tensor
+        
         # Update indices
-        node_indices.append((current_node_index, current_node_index + num_nodes))
-        edge_indices.append((current_edge_index, current_edge_index + num_edges))
-        current_node_index += num_nodes
-        current_edge_index += num_edges
+        node_indices.extend([i] * num_nodes)
+        edge_indices.extend([i] * num_edges)
 
         # Append other features
         batch_x_0.append(x_0)
@@ -205,11 +227,13 @@ def custom_collate(batch):
     # Convert lists to tensors or appropriate format
     batch_x_0 = torch.cat(batch_x_0, dim=0)
     batch_x_1 = torch.cat(batch_x_1, dim=0)
-    batch_y = [torch.tensor([y]) for y in batch_y]
+    batch_y = torch.tensor(batch_y, dtype=torch.float)
+    
+    large_a_0 = large_a_0.to_sparse()
+    large_upper_l_1 = large_upper_l_1.to_sparse()
+    large_lower_l_1 = large_lower_l_1.to_sparse()
 
-    batch_y = torch.cat(batch_y, dim=0)
-
-    return batch_x_0, large_a_0, batch_x_1, large_upper_l_1, large_lower_l_1, batch_y, node_indices, edge_indices
+    return batch_x_0, large_a_0, batch_x_1, large_lower_l_1, large_upper_l_1, batch_y, node_indices, edge_indices
 
 
 # with open('data/qm9_test_cell_complex.pkl', 'rb') as f:
@@ -217,8 +241,8 @@ def custom_collate(batch):
 
 
 
-# ccs = [CellData(*cc_to_data(cc)) for cc in qm9_test_cell_complex]
-# samples = ccs[0:4]
+# ccs = [CellData(*cc_to_data_topomodelx(cc)) for cc in qm9_test_cell_complex]
+# # samples = ccs[0:4]
 # # print(custom_collate(samples))
 
 
@@ -230,7 +254,7 @@ def custom_collate(batch):
 
 
 
-# # dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+# # # dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 # for batch in loader:
 #     print(batch)
