@@ -110,7 +110,8 @@ class CAN(torch.nn.Module):
         self.lin_1 = torch.nn.Linear(128, 1)
 
     def forward(
-        self, x_0, x_1, neighborhood_0_to_0, lower_neighborhood, upper_neighborhood
+        self, x_0, x_1, neighborhood_0_to_0, lower_neighborhood, upper_neighborhood,
+        edge_indices=None
     ):
         """Forward pass.
 
@@ -132,6 +133,8 @@ class CAN(torch.nn.Module):
         torch.Tensor
             Output prediction for the cell complex.
         """
+        print(edge_indices)
+        self.batch_size = len(edge_indices)
         
         # print('start training')
         # print('--'*20)
@@ -152,9 +155,24 @@ class CAN(torch.nn.Module):
                 x_1 = F.dropout(x_1, p=0.5, training=self.training)
 
         # max pooling over all nodes in each graph
-        #print('x_1.shape',x_1.shape)
-        x = x_1.max(dim=0)[0]
+        # may use mean pooling instead
+        
 
+        
+        # perform max pooling over all nodes in each graph
+        if self.batch_size == 1:
+            x = x_1.max(dim=0)[0]
+        else: 
+            print(edge_indices)
+            x = torch.zeros((self.batch_size, x_1.shape[-1]))
+            for i,indices in enumerate(edge_indices):
+                x[i] = x_1[indices].max(dim=0)[0]
+            
+        
+        # print('x_1.shape',x_1.shape)
+        # x = x_1.max(dim=0)[0]
+        # print('x.shape',x.shape)
+        
         # Feed-Foward Neural Network to predict the graph label
         out = torch.nn.functional.relu(self.lin_0(x))
         out = torch.nn.functional.relu(self.lin_1(out))

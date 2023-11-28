@@ -216,6 +216,9 @@ def custom_collate(batch):
         # convert adjacency matrix to sparse_coo_tensor
         
         # Update indices
+        current_node_index += num_nodes
+        current_edge_index += num_edges
+        
         node_indices.extend([i] * num_nodes)
         edge_indices.extend([i] * num_edges)
 
@@ -232,8 +235,16 @@ def custom_collate(batch):
     large_a_0 = large_a_0.to_sparse()
     large_upper_l_1 = large_upper_l_1.to_sparse()
     large_lower_l_1 = large_lower_l_1.to_sparse()
+    
+    indices = {}
+    for i,val in enumerate(edge_indices):
+        if val not in indices:
+            indices[val] = []
+        indices[val].append(i)
+    edge_indices = list(indices.values())
+    
 
-    return batch_x_0, large_a_0, batch_x_1, large_lower_l_1, large_upper_l_1, batch_y, node_indices, edge_indices
+    return batch_x_0, large_a_0, batch_x_1, large_lower_l_1, large_upper_l_1, batch_y, edge_indices
 
 
 # with open('data/qm9_test_cell_complex.pkl', 'rb') as f:
