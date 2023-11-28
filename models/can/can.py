@@ -133,7 +133,7 @@ class CAN(torch.nn.Module):
         torch.Tensor
             Output prediction for the cell complex.
         """
-        print(edge_indices)
+        #print(edge_indices)
         self.batch_size = len(edge_indices)
         
         # print('start training')
@@ -163,7 +163,7 @@ class CAN(torch.nn.Module):
         if self.batch_size == 1:
             x = x_1.max(dim=0)[0]
         else: 
-            print(edge_indices)
+            #print(edge_indices)
             x = torch.zeros((self.batch_size, x_1.shape[-1]))
             for i,indices in enumerate(edge_indices):
                 x[i] = x_1[indices].max(dim=0)[0]

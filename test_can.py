@@ -20,7 +20,7 @@ with open('data/qm9_test_cell_complex.pkl', 'rb') as f:
     qm9_test_cell_complex = pickle.load(f)
 
 ccs = [CellData(*cc_to_data_topomodelx(cc)) for cc in qm9_test_cell_complex]
-loader = DataLoader(ccs, batch_size=2, shuffle=False, collate_fn=custom_collate)
+loader = DataLoader(ccs, batch_size=128, shuffle=True, collate_fn=custom_collate)
 
 num_epochs = 1
 
@@ -49,20 +49,19 @@ for epoch_i in range(1, num_epochs+1):
         batch_x_0, batch_a_0, batch_x_1, batch_lower_l_1, batch_upper_l_1, batch_y, edge_indices = batch
 
         batch_x_0 = batch_x_0.float().to(device)
-        print('batch_x_0.shape',batch_x_0.shape)
+        #print('batch_x_0.shape',batch_x_0.shape)
         batch_a_0 = batch_a_0.float().to(device)
-        print('batch_a_0.shape',batch_a_0.shape)
+        #print('batch_a_0.shape',batch_a_0.shape)
         batch_x_1 = batch_x_1.float().to(device)
-        print('batch_x_1.shape',batch_x_1.shape)
+        #print('batch_x_1.shape',batch_x_1.shape)
         batch_lower_l_1 = batch_lower_l_1.float().to(device)
         batch_upper_l_1 = batch_upper_l_1.float().to(device)
-        batch_y = batch_y.to(device)
+        batch_y = batch_y.unsqueeze(1).to(device)
         #print('edge_indices',edge_indices)
         #print('batch_a_0 \n', batch_a_0.to_dense())
         #print('lower_l_1 \n', batch_lower_l_1.to_dense())
         #source, target = batch_a_0.indices()
         #print(len(source))
-        
         
         
 

@@ -191,8 +191,8 @@ class LiftLayer(MessagePassing):
         x_source = x_0[source]  # (num_edges, in_channels_0)
         x_target = x_0[target]  # (num_edges, in_channels_0)
         
-        print('x_source shape',x_source.shape)
-        print('x_target shape',x_target.shape)
+        #print('x_source shape',x_source.shape)
+        #print('x_target shape',x_target.shape)
         
         # Compute the edge signal
         return self.message(x_source, x_target)  # (num_edges, 1)
@@ -291,12 +291,12 @@ class MultiHeadLiftLayer(nn.Module):
         }
         combined_x_1 = readout_methods[self.signal_lift_readout](attention_heads_x_1)
 
-        print('combined_x_1 shape',combined_x_1.shape)
+        #print('combined_x_1 shape',combined_x_1.shape)
         # Apply dropout to the combined edge signal
         combined_x_1 = F.dropout(
             combined_x_1, self.signal_lift_dropout, training=self.training
         )
-        print('combined_x_1 shape after dropout',combined_x_1.shape)
+        #print('combined_x_1 shape after dropout',combined_x_1.shape)
         
         # Concatenate the lifted node signal with the original node signal if is not None
         if x_1 is not None:
