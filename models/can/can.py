@@ -48,7 +48,7 @@ class CAN(torch.nn.Module):
         in_channels_1,
         out_channels,
 #        num_classes,
-        dropout=0.5,
+        dropout=0.1,
         heads=3,
         concat=True,
         skip_connection=True,
@@ -62,7 +62,7 @@ class CAN(torch.nn.Module):
             self.lift_layer = MultiHeadLiftLayer(
                 in_channels_0=in_channels_0,
                 heads=in_channels_0,
-                signal_lift_dropout=0.5,
+                signal_lift_dropout=0.0,
             )
             in_channels_1 = in_channels_1 + in_channels_0
 
@@ -106,8 +106,8 @@ class CAN(torch.nn.Module):
             )
 
         self.layers = torch.nn.ModuleList(layers)
-        self.lin_0 = torch.nn.Linear(heads * out_channels, 128)
-        self.lin_1 = torch.nn.Linear(128, 1)
+        self.lin_0 = torch.nn.Linear(heads * out_channels, 64)
+        self.lin_1 = torch.nn.Linear(64, 1)
 
     def forward(
         self, x_0, x_1, neighborhood_0_to_0, lower_neighborhood, upper_neighborhood,
@@ -158,13 +158,12 @@ class CAN(torch.nn.Module):
         # may use mean pooling instead
         
 
-        
         # perform max pooling over all nodes in each graph
         if self.batch_size == 1:
             x = x_1.max(dim=0)[0]
         else: 
             #print(edge_indices)
-            x = torch.zeros((self.batch_size, x_1.shape[-1]))
+            x = torch.zeros((self.batch_size, x_1.shape[-1])).to(x_1.device)
             for i,indices in enumerate(edge_indices):
                 x[i] = x_1[indices].max(dim=0)[0]
             
@@ -172,7 +171,7 @@ class CAN(torch.nn.Module):
         # print('x_1.shape',x_1.shape)
         # x = x_1.max(dim=0)[0]
         # print('x.shape',x.shape)
-        
+        # print(x.device)
         # Feed-Foward Neural Network to predict the graph label
         out = torch.nn.functional.relu(self.lin_0(x))
         out = torch.nn.functional.relu(self.lin_1(out))
