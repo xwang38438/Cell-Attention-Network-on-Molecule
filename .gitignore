@@ -169,6 +169,5 @@ data/qm9_train_cell_complex.pkl
 data/qm9_test_cell_complex.pkl
 data/qm9_test_pyg_data.pkl
 data/qm9_train_pyg_data.pkl
-
-experiments
+experiments/data
 
